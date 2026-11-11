@@ -178,8 +178,7 @@ struct CastSheet: View {
                     if casting.isScanning { ProgressView() }
                 }
                 Section("Chromecast") {
-                    ForEach(casting.chromecastDevices.indices, id: \.self) { index in
-                        let device = casting.chromecastDevices[index]
+                    ForEach(Array(casting.chromecastDevices.enumerated()), id: \.offset) { _, device in
                         Button(device.name ?? device.host) {
                             if let url = currentURL {
                                 Task { await casting.castToChromecast(device, url: url, title: "Page") }
@@ -191,8 +190,7 @@ struct CastSheet: View {
                     }
                 }
                 Section("DLNA / UPnP") {
-                    ForEach(casting.dlnaDevices.indices, id: \.self) { index in
-                        let device = casting.dlnaDevices[index]
+                    ForEach(Array(casting.dlnaDevices.enumerated()), id: \.offset) { _, device in
                         Button(device.friendlyName ?? "DLNA Device") {
                             if let url = currentURL {
                                 Task { await casting.castToDLNA(device, url: url, title: "Page") }
