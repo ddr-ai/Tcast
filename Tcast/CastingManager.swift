@@ -3,6 +3,7 @@ import SwiftCast
 import UPnPCast
 import AVKit
 
+@MainActor
 @Observable
 class CastingManager {
     var chromecastDevices: [CastDevice] = []
@@ -20,7 +21,7 @@ class CastingManager {
         // Chromecast
         do {
             let devices = try await CastDiscovery.scan(for: .seconds(4))
-            await MainActor.run { chromecastDevices = devices }
+            chromecastDevices = devices
         } catch {
             print("Cast scan error: \(error)")
         }
@@ -28,15 +29,13 @@ class CastingManager {
         // DLNA
         do {
             let renderers = try await MediaRenderer.discover(duration: .seconds(4))
-            await MainActor.run { dlnaDevices = renderers }
+            dlnaDevices = renderers
         } catch {
             print("DLNA scan error: \(error)")
         }
         
-        await MainActor.run {
-            isScanning = false
-            statusMessage = "Found \(chromecastDevices.count) Cast, \(dlnaDevices.count) DLNA"
-        }
+        isScanning = false
+        statusMessage = "Found \(chromecastDevices.count) Cast, \(dlnaDevices.count) DLNA"
     }
     
     func castToChromecast(_ device: CastDevice, url: URL, title: String) async {
@@ -50,13 +49,11 @@ class CastingManager {
                 metadata: .movie(title: title)
             )
             try await media.load(info)
-            await MainActor.run {
-                castClient = client
-                mediaController = media
-                statusMessage = "Casting to \(device.name ?? "Chromecast")"
-            }
+            castClient = client
+            mediaController = media
+            statusMessage = "Casting to \(device.name ?? "Chromecast")"
         } catch {
-            await MainActor.run { statusMessage = "Cast failed: \(error.localizedDescription)" }
+            statusMessage = "Cast failed: \(error.localizedDescription)"
         }
     }
     
@@ -68,20 +65,18 @@ class CastingManager {
                 title: title
             )
             try await renderer.play(item)
-            await MainActor.run { statusMessage = "Casting to DLNA device" }
+            statusMessage = "Casting to DLNA device"
         } catch {
-            await MainActor.run { statusMessage = "DLNA cast failed: \(error.localizedDescription)" }
+            statusMessage = "DLNA cast failed: \(error.localizedDescription)"
         }
     }
     
     func stopCast() async {
         try? await mediaController?.stop()
         await castClient?.disconnect()
-        await MainActor.run {
-            castClient = nil
-            mediaController = nil
-            statusMessage = "Stopped"
-        }
+        castClient = nil
+        mediaController = nil
+        statusMessage = "Stopped"
     }
     
     private func mimeType(for url: URL) -> String {
