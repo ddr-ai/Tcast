@@ -191,7 +191,7 @@ struct CastSheet: View {
                 }
                 Section("DLNA / UPnP") {
                     ForEach(Array(casting.dlnaDevices.enumerated()), id: \.offset) { _, device in
-                        Button(device.friendlyName ?? "DLNA Device") {
+                        Button(device.name) {
                             if let url = currentURL {
                                 Task { await casting.castToDLNA(device, url: url, title: "Page") }
                             }
