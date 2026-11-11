@@ -179,7 +179,7 @@ struct CastSheet: View {
                 }
                 Section("Chromecast") {
                     ForEach(Array(casting.chromecastDevices.enumerated()), id: \.offset) { _, device in
-                        Button(device.name ?? device.host) {
+                        Button(device.name) {
                             if let url = currentURL {
                                 Task { await casting.castToChromecast(device, url: url, title: "Page") }
                             }
