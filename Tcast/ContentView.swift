@@ -10,6 +10,7 @@ struct ContentView: View {
     @State private var contextURL: URL?
     @State private var contextTitle: String?
     @State private var showContextMenu = false
+    @State private var preferredCastURL: URL?
     
     var selectedTab: BrowserTab? {
         tabs.first { $0.id == selectedTabId } ?? tabs.first
@@ -31,7 +32,7 @@ struct ContentView: View {
                     .keyboardType(.webSearch)
                 
                 Button(action: loadAddress) { Image(systemName: "arrow.right.circle.fill") }
-                Button(action: { showCastSheet = true }) { Image(systemName: "airplayvideo") }
+                Button(action: { prepareAndShowCast() }) { Image(systemName: "airplayvideo") }
             }
             .padding(8)
             .background(Color(.systemGray6))
@@ -95,7 +96,7 @@ struct ContentView: View {
             Task { await casting.scan() }
         }
         .sheet(isPresented: $showCastSheet) {
-            CastSheet(casting: casting, currentURL: selectedTab?.url)
+            CastSheet(casting: casting, preferredURL: preferredCastURL ?? selectedTab?.url)
         }
         .confirmationDialog("Open Link", isPresented: $showContextMenu) {
             if let url = contextURL {
@@ -107,6 +108,29 @@ struct ContentView: View {
                 }
             }
             Button("Cancel", role: .cancel) {}
+        }
+    }
+    
+    private func prepareAndShowCast() {
+        preferredCastURL = nil
+        if let webView = selectedTab?.webView {
+            webView.evaluateJavaScript("""
+                (function() {
+                    var v = document.querySelector('video');
+                    if (v) {
+                        var src = v.currentSrc || v.src || (v.querySelector('source') && v.querySelector('source').src);
+                        if (src && src.startsWith('http')) return src;
+                    }
+                    return null;
+                })()
+            """) { result, _ in
+                if let s = result as? String, let u = URL(string: s) {
+                    preferredCastURL = u
+                }
+                showCastSheet = true
+            }
+        } else {
+            showCastSheet = true
         }
     }
     
@@ -167,7 +191,7 @@ struct ContentView: View {
 
 struct CastSheet: View {
     @Bindable var casting: CastingManager
-    var currentURL: URL?
+    var preferredURL: URL?
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -176,34 +200,48 @@ struct CastSheet: View {
                 Section("Status") {
                     Text(casting.statusMessage)
                     if casting.isScanning { ProgressView() }
+                    if let url = preferredURL {
+                        Text("Casting: \(url.lastPathComponent.isEmpty ? url.absoluteString : url.lastPathComponent)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Section("AirPlay (incl. wireless HDMI adapters)") {
+                    HStack {
+                        Text("Select AirPlay device")
+                        Spacer()
+                        AirPlayPicker()
+                            .frame(width: 44, height: 44)
+                    }
+                    Text("AirPlay is the supported path for Miracast-compatible adapters on iOS. You can also use Control Center → Screen Mirroring.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
                 Section("Chromecast") {
                     ForEach(Array(casting.chromecastDevices.enumerated()), id: \.offset) { _, device in
                         Button(device.name) {
-                            if let url = currentURL {
-                                Task { await casting.castToChromecast(device, url: url, title: "Page") }
+                            if let url = preferredURL {
+                                Task { await casting.castToChromecast(device, url: url, title: "Tcast") }
                             }
                         }
                     }
                     if casting.chromecastDevices.isEmpty {
-                        Text("None found")
+                        Text("None found — tap Rescan")
+                            .foregroundStyle(.secondary)
                     }
                 }
                 Section("DLNA / UPnP") {
                     ForEach(Array(casting.dlnaDevices.enumerated()), id: \.offset) { _, device in
                         Button(device.name) {
-                            if let url = currentURL {
-                                Task { await casting.castToDLNA(device, url: url, title: "Page") }
+                            if let url = preferredURL {
+                                Task { await casting.castToDLNA(device, url: url, title: "Tcast") }
                             }
                         }
                     }
                     if casting.dlnaDevices.isEmpty {
-                        Text("None found")
+                        Text("None found — tap Rescan (multicast entitlement may be required)")
+                            .foregroundStyle(.secondary)
                     }
-                }
-                Section("AirPlay") {
-                    Text("Use the system AirPlay picker or Control Center Screen Mirroring. Ideal for the wireless HDMI adapter.")
-                        .font(.caption)
                 }
             }
             .navigationTitle("Cast")
