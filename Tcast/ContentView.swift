@@ -178,7 +178,8 @@ struct CastSheet: View {
                     if casting.isScanning { ProgressView() }
                 }
                 Section("Chromecast") {
-                    ForEach(casting.chromecastDevices, id: \.id) { device in
+                    ForEach(casting.chromecastDevices.indices, id: \.self) { index in
+                        let device = casting.chromecastDevices[index]
                         Button(device.name ?? device.host) {
                             if let url = currentURL {
                                 Task { await casting.castToChromecast(device, url: url, title: "Page") }
@@ -190,7 +191,8 @@ struct CastSheet: View {
                     }
                 }
                 Section("DLNA / UPnP") {
-                    ForEach(casting.dlnaDevices, id: \.id) { device in
+                    ForEach(casting.dlnaDevices.indices, id: \.self) { index in
+                        let device = casting.dlnaDevices[index]
                         Button(device.friendlyName ?? "DLNA Device") {
                             if let url = currentURL {
                                 Task { await casting.castToDLNA(device, url: url, title: "Page") }
@@ -204,7 +206,6 @@ struct CastSheet: View {
                 Section("AirPlay") {
                     Text("Use the system AirPlay picker or Control Center Screen Mirroring. Ideal for the wireless HDMI adapter.")
                         .font(.caption)
-                    // AVRoutePickerView can be wrapped if needed
                 }
             }
             .navigationTitle("Cast")
