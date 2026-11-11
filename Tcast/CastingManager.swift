@@ -16,26 +16,25 @@ class CastingManager {
     
     func scan() async {
         isScanning = true
-        statusMessage = "Scanning..."
+        statusMessage = "Scanning Chromecast, DLNA, and preparing AirPlay…"
         
-        // Chromecast
-        do {
-            let devices = try await CastDiscovery.scan(for: .seconds(4))
-            chromecastDevices = devices
-        } catch {
-            print("Cast scan error: \(error)")
-        }
+        // Run both discoveries in parallel with a longer window for slower devices
+        async let castTask: [CastDevice] = {
+            do { return try await CastDiscovery.scan(for: .seconds(8)) }
+            catch { print("Cast scan error: \(error)"); return [] }
+        }()
         
-        // DLNA
-        do {
-            let renderers = try await MediaRenderer.discover(duration: .seconds(4))
-            dlnaDevices = renderers
-        } catch {
-            print("DLNA scan error: \(error)")
-        }
+        async let dlnaTask: [MediaRenderer] = {
+            do { return try await MediaRenderer.discover(duration: .seconds(8)) }
+            catch { print("DLNA scan error: \(error)"); return [] }
+        }()
+        
+        let (castDevices, dlnaRenderers) = await (castTask, dlnaTask)
+        chromecastDevices = castDevices
+        dlnaDevices = dlnaRenderers
         
         isScanning = false
-        statusMessage = "Found \(chromecastDevices.count) Cast, \(dlnaDevices.count) DLNA"
+        statusMessage = "Found \(chromecastDevices.count) Chromecast, \(dlnaDevices.count) DLNA. Use AirPlay picker for AirPlay/Miracast adapters."
     }
     
     func castToChromecast(_ device: CastDevice, url: URL, title: String) async {
@@ -65,7 +64,7 @@ class CastingManager {
                 title: title
             )
             try await renderer.play(item)
-            statusMessage = "Casting to DLNA device"
+            statusMessage = "Casting to \(renderer.name)"
         } catch {
             statusMessage = "DLNA cast failed: \(error.localizedDescription)"
         }
@@ -86,6 +85,8 @@ class CastingManager {
         case "mp4": return "video/mp4"
         case "webm": return "video/webm"
         case "mkv": return "video/x-matroska"
+        case "mp3": return "audio/mpeg"
+        case "aac": return "audio/aac"
         default: return "video/mp4"
         }
     }
