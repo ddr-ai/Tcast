@@ -1,0 +1,36 @@
+name: Tcast
+options:
+  bundleIdPrefix: com.ddr-ai
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: 6.0
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: ""
+    CODE_SIGNING_REQUIRED: NO
+    CODE_SIGNING_ALLOWED: NO
+packages:
+  SwiftCast:
+    url: https://github.com/CreatureSurvive/SwiftCast.git
+    from: 1.0.1
+  UPnPCast:
+    url: https://github.com/CreatureSurvive/UPnPCast.git
+    from: 1.0.0
+targets:
+  Tcast:
+    type: application
+    platform: iOS
+    sources:
+      - path: Tcast
+    settings:
+      base:
+        INFOPLIST_FILE: Tcast/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.ddr-ai.Tcast
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "1,2"
+    dependencies:
+      - package: SwiftCast
+      - package: UPnPCast
